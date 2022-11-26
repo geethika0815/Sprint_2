@@ -1,0 +1,361 @@
+        -:    0:Source:server.cpp
+        -:    0:Graph:server.gcno
+        -:    0:Data:server.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:#include <stdio.h>
+        -:    2:#include <string.h>
+        -:    3:#include <sys/socket.h>
+        -:    4:#include <netinet/in.h>
+        -:    5:#include <pthread.h>
+        -:    6:#include <string>
+        -:    7:#include <queue>
+        -:    8:#include <iostream>
+        -:    9:#include<fstream>
+        -:   10:#include<signal.h>
+        -:   11:#include "logger.h"
+        -:   12:using namespace std;
+        -:   13:
+        -:   14:#define BUFFER_LEN 10
+        -:   15:#define NAME_LEN 10
+        -:   16:#define MAX_CLIENT_NUM 2
+        -:   17://#define hello 50
+        -:   18:/*Structure Client*/
+        -:   19:struct Client
+        -:   20:{
+        -:   21:    int valid;               /* to judge whether this user is online*/
+        -:   22:    int fd_id;               /* user ID number*/
+        -:   23:    int socket;              /* socket to this user*/
+        -:   24:    char name[NAME_LEN + 1]; /* name of the user*/
+        -:   25:} client[MAX_CLIENT_NUM] = {0};
+        -:   26:
+        2:   27:queue<string> message_q[MAX_CLIENT_NUM]; /* message buffer */
+        -:   28:int current_client_num = 0;
+        -:   29:/* sync current_client_num*/
+        -:   30:
+        -:   31:pthread_mutex_t num_mutex = PTHREAD_MUTEX_INITIALIZER;
+        -:   32:
+        -:   33:/* 2 kinds of threads*/
+        -:   34:pthread_t chat_thread[MAX_CLIENT_NUM] = {0};
+        -:   35:pthread_t send_thread[MAX_CLIENT_NUM] = {0};
+        -:   36:
+        -:   37:/* used to sync*/
+        -:   38:pthread_mutex_t mutex[MAX_CLIENT_NUM] = {0};
+        -:   39:pthread_cond_t cv[MAX_CLIENT_NUM] = {0};
+        2:   40:void *handle_send(void *data)
+        -:   41:{
+        2:   42:    struct Client *pipe = (struct Client *)data;
+        -:   43:    while (1)
+        -:   44:    {
+        7:   45:        pthread_mutex_lock(&mutex[pipe->fd_id]);
+        -:   46:        /* wait until new message receive*/
+       13:   47:        while (message_q[pipe->fd_id].empty())
+        -:   48:        {
+        5:   49:            pthread_cond_wait(&cv[pipe->fd_id], &mutex[pipe->fd_id]);
+        -:   50:        }
+       15:   51:        while (!message_q[pipe->fd_id].empty())
+        -:   52:        {
+       10:   53:            string message_buffer = message_q[pipe->fd_id].front(); 
+        5:   54:            int n = message_buffer.length(); 
+        -:   55:            /* calculate one transfer length*/
+        5:   56:            int trans_len = BUFFER_LEN > n ? n : BUFFER_LEN;
+        -:   57:            /* send the message*/
+       59:   58:            while (n > 0)
+        -:   59:            {
+       27:   60:                int len = send(pipe->socket, message_buffer.c_str(), trans_len, 0); 
+       27:   61:                if (len < 0)
+        -:   62:                {
+    #####:   63:                    perror("send"); 
+    #####:   64:                    return NULL;
+        -:   65:                }
+       27:   66:                n -= len;
+        -:   67:
+       27:   68:                message_buffer.erase(0, len); /* delete data that has been transported*/
+       27:   69:                trans_len = BUFFER_LEN > n ? n : BUFFER_LEN;
+        -:   70:            }
+        -:   71:            /* delete the message that has been sent*/
+        5:   72:            message_buffer.clear();
+        5:   73:            message_q[pipe->fd_id].pop();
+        -:   74:        }
+        5:   75:        pthread_mutex_unlock(&mutex[pipe->fd_id]);
+        5:   76:    }
+        -:   77:    return NULL;
+        -:   78:}
+        -:   79:/*handle Receive*/
+        2:   80:void handle_recv(void *data)
+        -:   81:{
+        2:   82:    struct Client *pipe = (struct Client *)data;
+        -:   83:
+        -:   84:    /* message buffer*/
+        4:   85:    string message_buffer;
+        2:   86:    int message_len = 0;
+        -:   87:
+        -:   88:    /* one transfer buffer*/
+        -:   89:    char buffer[BUFFER_LEN + 1];
+        2:   90:    int buffer_len = 0;
+        -:   91:
+        -:   92:    /* receive*/
+        4:   93:    while ((buffer_len = recv(pipe->socket, buffer, BUFFER_LEN, 0)) > 0)
+        -:   94:    {
+        7:   95:        for (int i = 0; i < buffer_len; i++)  
+        -:   96:        {
+        6:   97:            if (message_len == 0)
+        -:   98:            {
+        -:   99:                char temp[100];
+        1:  100:                sprintf(temp, "%s:", pipe->name);
+        1:  101:                message_buffer = temp;
+        1:  102:                message_len = message_buffer.length();
+        -:  103:            }
+        -:  104:
+        6:  105:            message_buffer += buffer[i]; 
+        6:  106:            message_len++; 
+        -:  107:
+        6:  108:            if (buffer[i] == '\n')  
+        -:  109:            {
+        -:  110:                /* send to every client*/
+        3:  111:                for (int j = 0; j < MAX_CLIENT_NUM; j++) 
+        -:  112:                {
+        2:  113:                    if (client[j].valid && client[j].socket != pipe->socket)
+        -:  114:                    {
+        1:  115:                        pthread_mutex_lock(&mutex[j]);
+        1:  116:                        message_q[j].push(message_buffer); 
+        1:  117:                        pthread_cond_signal(&cv[j]); 
+        1:  118:                        pthread_mutex_unlock(&mutex[j]);
+        -:  119:                    }
+        -:  120:                }
+        -:  121:                /* new message start*/
+        1:  122:                message_len = 0;
+        1:  123:                message_buffer.clear();
+        -:  124:            }
+        -:  125:        }
+        -:  126:        /* clear buffer*/
+        1:  127:        buffer_len = 0;
+        1:  128:        memset(buffer, 0, sizeof(buffer));
+        -:  129:    }
+        4:  130:    return;
+        -:  131:}
+        -:  132:/* chat Function*/
+        2:  133:void *chat(void *data)
+        -:  134:{
+        2:  135:    struct Client *pipe = (struct Client *)data;
+        -:  136:
+        -:  137:    /* printf hello message*/
+        -:  138:    char hello[100];
+        2:  139:    sprintf(hello,"hello %s, Welcome to join the chatroom. Online User Number: %d\n", pipe->name, current_client_num);
+        2:  140:    pthread_mutex_lock(&mutex[pipe->fd_id]);
+        2:  141:    message_q[pipe->fd_id].push(hello);
+        2:  142:    pthread_cond_signal(&cv[pipe->fd_id]);
+        2:  143:    pthread_mutex_unlock(&mutex[pipe->fd_id]);
+        2:  144:    memset(hello, 0, sizeof(hello));
+        2:  145:    sprintf(hello, "New User %s join in! Online User Number: %d\n", pipe->name, current_client_num);
+        -:  146:    /* send messages to other users*/
+        6:  147:    for (int j = 0; j < MAX_CLIENT_NUM; j++)
+        -:  148:    {
+        4:  149:        if (client[j].valid && client[j].socket != pipe->socket)
+        -:  150:        {
+        1:  151:            pthread_mutex_lock(&mutex[j]);
+        1:  152:            message_q[j].push(hello);
+        1:  153:            pthread_cond_signal(&cv[j]);
+        1:  154:            pthread_mutex_unlock(&mutex[j]);
+        -:  155:        }
+        -:  156:    }
+        -:  157:
+        -:  158:    /* create a new thread to handle send messages for this socket*/
+        2:  159:    pthread_create(&send_thread[pipe->fd_id], NULL, handle_send, (void *)pipe);
+        -:  160:
+        -:  161:    /* receive message*/
+        2:  162:    handle_recv(data);
+        2:  163:    pthread_mutex_lock(&num_mutex);
+        2:  164:    pipe->valid = 0;
+        2:  165:    current_client_num--;
+        2:  166:    pthread_mutex_unlock(&num_mutex);
+        -:  167:    /* printf bye message*/
+        2:  168:    LOG_INFO("%s left the chatroom. Online Person Number: %d\n", pipe->name, current_client_num);
+        -:  169:    char bye[100];
+        2:  170:    sprintf(bye, "%s left the chatroom. Online Person Number: %d\n", pipe->name, current_client_num);
+        -:  171:   /* send offline message to other clients*/
+        6:  172:    for (int j = 0; j < MAX_CLIENT_NUM; j++)
+        -:  173:    {
+        4:  174:        if (client[j].valid && client[j].socket != pipe->socket)
+        -:  175:        {
+        1:  176:            pthread_mutex_lock(&mutex[j]);
+        1:  177:            message_q[j].push(bye);
+        1:  178:            pthread_cond_signal(&cv[j]);
+        1:  179:            pthread_mutex_unlock(&mutex[j]);
+        -:  180:        }
+        -:  181:    }
+        -:  182:
+        2:  183:    pthread_mutex_destroy(&mutex[pipe->fd_id]);
+        2:  184:    pthread_cond_destroy(&cv[pipe->fd_id]);
+    #####:  185:    pthread_cancel(send_thread[pipe->fd_id]);
+        -:  186:
+    #####:  187:    return NULL;
+        -:  188:}
+        -:  189:
+        -:  190:const int SIZE = 4;
+        2:  191:string Usernames[SIZE];
+        2:  192:string Password[SIZE];
+        -:  193:
+        2:  194:    int GetNameIndex(string query, int size)
+        -:  195:    {
+       10:  196:	for (int count=0; count<size; count++)
+        -:  197:	{
+        9:  198:		if (query == Usernames[count]) return count;
+        -:  199:	}
+        1:  200:	return -1;
+        -:  201:}
+        -:  202:
+        2:  203:bool PasswordMatches(int index, string passwd)
+        -:  204:{
+        2:  205:	return (passwd == Password[index]);
+        -:  206:}
+        1:  207:void sig_handler(int sig){
+        1:  208:	printf("Server is shutdown\n");
+        1:  209:	exit(0);
+        -:  210:}
+        2:  211:int main()
+        -:  212:{
+        2:  213:        label:
+        -:  214:	/*Read the database*/
+        2:  215:	ifstream findip("database.txt");
+        2:  216:	int cnt=0;
+        2:  217:	signal(SIGINT,sig_handler);
+        -:  218:
+       22:  219:	while (!findip.eof())
+        -:  220:	{
+       10:  221:		findip >> Usernames[cnt] >> Password[cnt];
+       10:  222:		cnt++; 
+        -:  223:	}
+        -:  224:
+        -:  225:	/*Now the rest of the program*/
+        2:  226:	string usrname, passwd;
+        2:  227:	LOG_INFO("Enter the Username:");
+        2:  228:	cin >> usrname;
+        -:  229:
+        2:  230:	int index = GetNameIndex(usrname, cnt); 
+        -:  231:
+        2:  232:	LOG_INFO(" Enter the Password:");
+        2:  233:	cin >> passwd;
+        -:  234:
+        2:  235:	if (!PasswordMatches(index, passwd))
+        -:  236:	{
+        1:  237:		LOG_ERROR("Invalid user Details\n");
+        1:  238:		goto label;
+        -:  239:		
+        -:  240:	}
+        1:  241:    LOG_INFO( "Thank you for logging in.\n");
+        1:  242:    LOG_INFO("\n\n********* WELCOME TO CHAT BOX APPLICATION ************");
+        -:  243:
+        -:  244:    /* create server socket*/
+        -:  245:    int server_sock;
+        1:  246:    if ((server_sock = socket(AF_INET, SOCK_STREAM, 0)) == 0)
+        -:  247:    {
+    #####:  248:        perror("socket");
+    #####:  249:        return 1;
+        -:  250:    }
+        -:  251:    struct sockaddr_in addr;
+        1:  252:    addr.sin_family = AF_INET;
+        1:  253:    addr.sin_addr.s_addr = INADDR_ANY;
+        -:  254:
+        -:  255:    /* get server port and bind*/
+        1:  256:    int server_port = 0;
+    #####:  257:    while (1)
+        -:  258:    {
+        1:  259:        LOG_INFO("Please enter the port number of the server: ");
+        1:  260:        cin>>server_port;
+        1:  261:        addr.sin_port = htons(server_port); 
+        1:  262:        if (bind(server_sock, (struct sockaddr *)&addr, sizeof(addr)))
+        -:  263:        {
+    #####:  264:            perror("bind");
+    #####:  265:            continue;
+        -:  266:        }
+        1:  267:        break;
+        -:  268:    }
+        -:  269:
+        -:  270:    /*no more than 32 clients*/
+        1:  271:    if (listen(server_sock, MAX_CLIENT_NUM + 1))
+        -:  272:    {
+    #####:  273:        perror("listen");
+    #####:  274:        return -1;
+        -:  275:    }
+        1:  276:    LOG_INFO("Server start successfully!\n");
+        1:  277:    LOG_INFO("You can join the chatroom by connecting to 127.0.0.1:%d\n\n", server_port);
+        -:  278:
+        -:  279:    /* waiting for new client to join in*/
+        -:  280:    while (1)
+        -:  281:    {
+        -:  282:        /* create a new connect*/
+        4:  283:        int client_sock = accept(server_sock, NULL, NULL);
+        3:  284:        if (client_sock == -1)
+        -:  285:        {
+    #####:  286:            perror("accept");
+    #####:  287:            return -1;
+        -:  288:        }
+        -:  289:
+        -:  290:        /* check whether is full or not*/
+        4:  291:        if (current_client_num >= MAX_CLIENT_NUM)
+        -:  292:        {
+        1:  293:            if (send(client_sock, "ERROR", strlen("ERROR"), 0) < 0)
+    #####:  294:            perror("send");
+        1:  295:            shutdown(client_sock, 2);
+        2:  296:            continue;
+        -:  297:        }
+        -:  298:        else
+        -:  299:        {
+        2:  300:            if (send(client_sock, "OK", strlen("OK"), 0) < 0)
+    #####:  301:                perror("send");
+        -:  302:        }
+        -:  303:
+        -:  304:        /* get client's name*/
+        2:  305:        char name[NAME_LEN + 1] = {0};
+        2:  306:        ssize_t state = recv(client_sock, name, NAME_LEN, 0);
+        2:  307:        if (state < 0)
+        -:  308:        {
+    #####:  309:            perror("recv");
+    #####:  310:            shutdown(client_sock, 2);
+    #####:  311:            continue;
+        -:  312:        }
+        -:  313:        /* new user do not input a name but leave directly*/
+        2:  314:        else if (state == 0)
+        -:  315:        {
+    #####:  316:            shutdown(client_sock, 2);
+    #####:  317:            continue;
+        -:  318:        }
+        -:  319:
+        -:  320:        /* update client array, create new thread*/
+        3:  321:        for (int i = 0; i < MAX_CLIENT_NUM; i++)
+        -:  322:        {
+        -:  323:            /* find the first unused client*/
+        3:  324:            if (!client[i].valid)
+        -:  325:            {
+        2:  326:                pthread_mutex_lock(&num_mutex);
+        -:  327:                /*set name*/
+        2:  328:                memset(client[i].name, 0, sizeof(client[i].name));
+        2:  329:                strcpy(client[i].name, name);
+        -:  330:                /* set other info*/
+        2:  331:                client[i].valid = 1;
+        2:  332:                client[i].fd_id = i;
+        2:  333:                client[i].socket = client_sock;
+        -:  334:
+        2:  335:                mutex[i] = PTHREAD_MUTEX_INITIALIZER;
+        2:  336:                cv[i] = PTHREAD_COND_INITIALIZER;
+        -:  337:
+        2:  338:                current_client_num++;
+        2:  339:                pthread_mutex_unlock(&num_mutex);
+        -:  340:
+        -:  341:                /* create new receive thread for new client*/
+        2:  342:                pthread_create(&chat_thread[i], NULL, chat, (void *)&client[i]);
+        2:  343:                LOG_INFO("%s join in the chatroom. Online User Number: %d\n", client[i].name, current_client_num);
+        -:  344:
+        2:  345:                break;
+        -:  346:            }
+        -:  347:        }
+        3:  348:    }
+        -:  349:
+        -:  350:    /*close socket*/
+        -:  351:    for (int i = 0; i < MAX_CLIENT_NUM; i++)
+        -:  352:        if (client[i].valid)
+        -:  353:            shutdown(client[i].socket, 2);
+        -:  354:    shutdown(server_sock, 2);
+        -:  355:    return 0;
+        3:  356:}
