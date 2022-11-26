@@ -1,0 +1,267 @@
+        -:    0:Source:client.cpp
+        -:    0:Graph:client.gcno
+        -:    0:Data:client.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:#include <iostream>
+        -:    2:#include <stdio.h>
+        -:    3:#include <string.h>
+        -:    4:#include <limits>
+        -:    5:#include <sys/socket.h>
+        -:    6:#include <arpa/inet.h>
+        -:    7:#include <pthread.h>
+        -:    8:#include <string>
+        -:    9:#include "logger.h"
+        -:   10:#include <fstream>
+        -:   11:using namespace std;
+        -:   12:
+        -:   13:#define BUFFER_LEN 10
+        -:   14:#define NAME_LEN 10
+        -:   15:
+        -:   16:char name[NAME_LEN + 1]; // client's name
+        -:   17:
+        -:   18:/*receive message and print out*/
+        1:   19:void *handle_recv(void *data)
+        -:   20:{
+        1:   21:    int pipe = *(int *)data;
+        -:   22:
+        -:   23:    /*message buffer*/
+        1:   24:    string message_buffer;
+        1:   25:    int message_len = 0;
+        -:   26:
+        -:   27:    /*one transfer buffer*/
+        -:   28:    char buffer[BUFFER_LEN + 1];
+        1:   29:    int buffer_len = 0;
+        -:   30:
+        -:   31:    /*receive*/
+       15:   32:    while ((buffer_len = recv(pipe, buffer, BUFFER_LEN, 0)) > 0)
+        -:   33:    {
+        -:   34:        /*to find '\n' as the end of the message*/
+       74:   35:        for (int i = 0; i < buffer_len; i++)
+        -:   36:        {
+       67:   37:            if (message_len == 0)
+        1:   38:                message_buffer = buffer[i];
+        -:   39:            else
+       66:   40:                message_buffer += buffer[i];
+        -:   41:
+       67:   42:            message_len++;
+        -:   43:
+       67:   44:            if (buffer[i] == '\n')
+        -:   45:            {
+        -:   46:                /*print out the message*/
+        1:   47:                cout << message_buffer << endl;
+        -:   48:
+        -:   49:                /*new message start*/
+        1:   50:                message_len = 0;
+        1:   51:                message_buffer.clear();
+        -:   52:            }
+        -:   53:        }
+        7:   54:        memset(buffer, 0, sizeof(buffer));
+        -:   55:    }
+        -:   56:    /*because the recv() function is blocking, so when the while() loop break, it means the server is offline*/
+    #####:   57:    printf("The Server has been shutdown!\n");
+    #####:   58:    return NULL;
+        -:   59:}
+        -:   60:const int SIZE = 4;	
+        2:   61:string Usernames[SIZE];
+        2:   62:string Password[SIZE];
+        -:   63:
+        2:   64:    int GetNameIndex(string query, int size)
+        -:   65:    {
+        7:   66:	for (int count=0; count<size; count++)
+        -:   67:	{
+        6:   68:		if (query == Usernames[count]) return count; 
+        -:   69:	}
+        1:   70:	return -1; //Error code
+        -:   71:}
+        -:   72:
+        2:   73:bool PasswordMatches(int index, string passwd)
+        -:   74:{
+        2:   75:	return (passwd == Password[index]);
+        -:   76:}
+        2:   77:int main()
+        -:   78:{
+        2:   79:        label:
+        -:   80:	//Read the database;
+        2:   81:	ifstream findip("database.txt");
+        2:   82:	int cnt=0;
+        -:   83:
+       22:   84:	while (!findip.eof())
+        -:   85:	{
+       10:   86:		findip >> Usernames[cnt] >> Password[cnt];
+       10:   87:		cnt++; 
+        -:   88:	}
+        -:   89:
+        -:   90:	//Now the rest of the program
+        2:   91:	string usrname, passwd;
+        2:   92:	LOG_INFO("Enter the Username:");
+        2:   93:	cin >> usrname;
+        -:   94:
+        2:   95:	int index = GetNameIndex(usrname, cnt); 
+        -:   96:
+        2:   97:	LOG_INFO(" Enter the Password:");
+        2:   98:	cin >> passwd;
+        -:   99:
+        2:  100:	if (!PasswordMatches(index, passwd))
+        -:  101:	{
+        1:  102:		LOG_ERROR("Invalid user details\n");
+        1:  103:		goto label;
+        -:  104:		
+        -:  105:	}
+        -:  106:	
+        -:  107:	
+        1:  108:    LOG_INFO( "Thank you for logging in.\n");
+        1:  109:    LOG_INFO ("\n\n**");
+        1:  110:    LOG_INFO ("\n\n**             WELCOME TO CHAT BOX APPLICATION *****");
+        1:  111:    LOG_INFO  ("\n\n***");	
+        -:  112:    /*create a socket to connect with the server*/
+        -:  113:    int client_sock;
+        1:  114:    if ((client_sock = socket(AF_INET, SOCK_STREAM, 0)) == 0)
+        -:  115:    {
+    #####:  116:        perror("socket");
+    #####:  117:        return -1;
+        -:  118:    }
+        -:  119:    struct sockaddr_in addr;
+        1:  120:    addr.sin_family = AF_INET;
+        -:  121:
+        -:  122:    /*get IP address and port of the server and connect*/
+        1:  123:    int server_port = 0;
+        1:  124:    char server_ip[16] = {0};
+        2:  125:    while (1)
+        -:  126:    {
+        3:  127:        LOG_INFO("Please enter IP address of the server: ");
+        3:  128:        cin>>server_ip;
+        3:  129:        LOG_INFO("Please enter port number of the server: ");
+        3:  130:        cin>>server_port;
+        3:  131:        getchar(); /*read useless '\n'*/
+        -:  132:
+        3:  133:        addr.sin_port = htons(server_port);
+        3:  134:        addr.sin_addr.s_addr = inet_addr(server_ip);
+        -:  135:        /*connect the server*/
+        5:  136:        if (connect(client_sock, (struct sockaddr *)&addr, sizeof(addr)))
+        -:  137:        {
+        2:  138:            perror("connect");
+        2:  139:            continue;
+        -:  140:        }
+        1:  141:        break;
+        -:  142:    }
+        -:  143:
+        -:  144:    /*check state*/
+        1:  145:    LOG_INFO("Connecting......");
+        1:  146:    fflush(stdout);
+        1:  147:    char state[10] = {0};
+        1:  148:    if (recv(client_sock, state, sizeof(state), 0) < 0)
+        -:  149:    {
+    #####:  150:        perror("recv");
+    #####:  151:        return -1;
+        -:  152:    }
+        1:  153:    if (strcmp(state, "OK"))
+        -:  154:    {
+    #####:  155:        LOG_ERROR("\rThe chatroom is already full!\n");
+    #####:  156:        return 0;
+        -:  157:    }
+        -:  158:    else
+        -:  159:    {
+        1:  160:        LOG_INFO("\rConnect Successfully!\n");
+        -:  161:    }
+        -:  162:
+        -:  163:    /*********** get client name ****************/
+        1:  164:    LOG_INFO("Welcome to Use Multi-Person Chat room!\n");
+        -:  165:    while (1)
+        -:  166:    {
+        2:  167:        LOG_INFO("Please enter your name: ");
+        2:  168:        cin.get(name, NAME_LEN);
+        2:  169:        int name_len = strlen(name);
+        -:  170:    
+        -:  171:        /* overflow*/
+        3:  172:        if (name_len > NAME_LEN - 2)
+        -:  173:        {
+        -:  174:            // reset
+        1:  175:            cin.clear();
+        1:  176:            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        1:  177:            LOG_ERROR("\nReached the upper limit of the words!\n");
+        1:  178:            continue;
+        -:  179:        }
+        1:  180:        cin.get(); // remove '\n' in stdin
+        1:  181:        name[name_len] = '\0';
+        1:  182:        break;
+        1:  183:    }
+        1:  184:    if (send(client_sock, name, strlen(name), 0) < 0)
+        -:  185:    {
+    #####:  186:        perror("send");
+    #####:  187:        return -1;
+        -:  188:    }
+        -:  189:    /*************** get client name ********************/
+        -:  190:
+        -:  191:    /*create a new thread to handle receive message*/
+        -:  192:    pthread_t recv_thread;
+        1:  193:    pthread_create(&recv_thread, NULL, handle_recv, (void *)&client_sock);
+        -:  194:
+        -:  195:    /* get message and send*/
+        -:  196:    while (1)
+        -:  197:    {
+        -:  198:        char message[BUFFER_LEN + 1];
+        4:  199:        cin.get(message, BUFFER_LEN);
+        4:  200:        int n = strlen(message);
+        -:  201:
+        4:  202:	if(strcmp(message, "exit")==0){
+        1:  203:		exit(0);
+        -:  204:	}
+        3:  205:        if (cin.eof())
+        -:  206:        {
+        -:  207:            /*reset*/
+    #####:  208:            cin.clear();
+    #####:  209:            clearerr(stdin);
+        1:  210:            continue;
+        -:  211:        }
+        -:  212:        /*single enter*/
+        3:  213:        else if (n == 0)
+        -:  214:        {
+        -:  215:            /*reset*/
+    #####:  216:            cin.clear();
+    #####:  217:            clearerr(stdin);
+        -:  218:        }
+        -:  219:        /*overflow*/
+        4:  220:        if (n > BUFFER_LEN - 2)
+        -:  221:        {
+        -:  222:            /*reset*/
+        1:  223:            cin.clear();
+        1:  224:            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        1:  225:            LOG_ERROR("Reached the upper limit of the words!\n");
+        1:  226:            continue;
+        -:  227:        }
+        2:  228:        cin.get();         /* remove '\n' in stdin*/
+        2:  229:        message[n] = '\n'; /*add '\n'*/
+        2:  230:        message[n + 1] = '\0';
+        -:  231:        /*the length of message now is n+1*/
+        2:  232:        n++;
+        2:  233:        LOG_INFO("\n");
+        -:  234:        /*the length of message that has been sent*/
+        2:  235:        int sent_len = 0;
+        -:  236:        /*calculate one transfer length*/
+        -:  237:
+        2:  238:        int trans_len = BUFFER_LEN > n ? n : BUFFER_LEN;
+        -:  239:
+        -:  240:        /*send message*/
+        6:  241:        while (n > 0)
+        -:  242:        {
+        2:  243:            int len = send(client_sock, message + sent_len, trans_len, 0);
+        2:  244:            if (len < 0)
+        -:  245:            {
+    #####:  246:                perror("send");
+    #####:  247:                return -1;
+        -:  248:            }
+        -:  249:            /*if one transfer has not sent the full message, then send the remain message*/
+        2:  250:            n -= len;
+        2:  251:            sent_len += len;
+        2:  252:            trans_len = BUFFER_LEN > n ? n : BUFFER_LEN;
+        -:  253:        }
+        -:  254:        /*clean the buffer*/
+        2:  255:        memset(message, 0, sizeof(message));
+        3:  256:    }
+        -:  257:
+        -:  258:    pthread_cancel(recv_thread);
+        -:  259:    shutdown(client_sock, 2);
+        -:  260:     
+        -:  261:    return 0;
+        3:  262:}
