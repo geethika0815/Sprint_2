@@ -1,0 +1,89 @@
+|| CHAT BOX APPLICATION ||  2022-11-27 15:46:46 | INFO    | server.cpp      | main:227 | Enter the Username:
+|| CHAT BOX APPLICATION ||  2022-11-27 15:46:54 | INFO    | server.cpp      | main:232 |  Enter the Password:
+|| CHAT BOX APPLICATION ||  2022-11-27 15:46:55 | ERROR   | server.cpp      | main:237 | Invalid user Details
+
+|| CHAT BOX APPLICATION ||  2022-11-27 15:46:55 | INFO    | server.cpp      | main:227 | Enter the Username:
+|| CHAT BOX APPLICATION ||  2022-11-27 15:46:58 | INFO    | server.cpp      | main:232 |  Enter the Password:
+|| CHAT BOX APPLICATION ||  2022-11-27 15:47:02 | INFO    | server.cpp      | main:241 | Thank you for logging in.
+
+|| CHAT BOX APPLICATION ||  2022-11-27 15:47:02 | INFO    | server.cpp      | main:242 | 
+
+*** WELCOME TO CHAT BOX APPLICATION ****
+|| CHAT BOX APPLICATION ||  2022-11-27 15:47:02 | INFO    | server.cpp      | main:259 | Please enter the port number of the server: 
+|| CHAT BOX APPLICATION ||  2022-11-27 15:47:23 | INFO    | server.cpp      | main:259 | Please enter the port number of the server: 
+|| CHAT BOX APPLICATION ||  2022-11-27 15:47:28 | INFO    | server.cpp      | main:276 | Server start successfully!
+
+|| CHAT BOX APPLICATION ||  2022-11-27 15:47:28 | INFO    | server.cpp      | main:277 | You can join the chatroom by connecting to 127.0.0.1:8888
+
+
+|| CHAT BOX APPLICATION ||  2022-11-27 15:47:37 | INFO    | client.cpp      | main:92 | Enter the Username:
+|| CHAT BOX APPLICATION ||  2022-11-27 15:47:42 | INFO    | client.cpp      | main:97 |  Enter the Password:
+|| CHAT BOX APPLICATION ||  2022-11-27 15:47:44 | ERROR   | client.cpp      | main:102 | Invalid user details
+
+|| CHAT BOX APPLICATION ||  2022-11-27 15:47:44 | INFO    | client.cpp      | main:92 | Enter the Username:
+|| CHAT BOX APPLICATION ||  2022-11-27 15:47:48 | INFO    | client.cpp      | main:97 |  Enter the Password:
+|| CHAT BOX APPLICATION ||  2022-11-27 15:47:52 | INFO    | client.cpp      | main:108 | Thank you for logging in.
+
+|| CHAT BOX APPLICATION ||  2022-11-27 15:47:52 | INFO    | client.cpp      | main:109 | 
+
+**
+|| CHAT BOX APPLICATION ||  2022-11-27 15:47:52 | INFO    | client.cpp      | main:110 | 
+
+*             WELCOME TO CHAT BOX APPLICATION **
+|| CHAT BOX APPLICATION ||  2022-11-27 15:47:52 | INFO    | client.cpp      | main:111 | 
+
+*
+|| CHAT BOX APPLICATION ||  2022-11-27 15:47:52 | INFO    | client.cpp      | main:127 | Please enter IP address of the server: 
+|| CHAT BOX APPLICATION ||  2022-11-27 15:47:57 | INFO    | client.cpp      | main:129 | Please enter port number of the server: 
+|| CHAT BOX APPLICATION ||  2022-11-27 15:48:03 | INFO    | client.cpp      | main:145 | Connecting......
+|| CHAT BOX APPLICATION ||  2022-11-27 15:48:03 | INFO    | client.cpp      | main:160 | 
+Connect Successfully!
+
+|| CHAT BOX APPLICATION ||  2022-11-27 15:48:03 | INFO    | client.cpp      | main:164 | Welcome to Use Multi-Person Chat room!
+
+|| CHAT BOX APPLICATION ||  2022-11-27 15:48:03 | INFO    | client.cpp      | main:167 | Please enter your name: 
+|| CHAT BOX APPLICATION ||  2022-11-27 15:48:07 | ERROR   | client.cpp      | main:177 | 
+Reached the upper limit of the words!
+
+|| CHAT BOX APPLICATION ||  2022-11-27 15:48:07 | INFO    | client.cpp      | main:167 | Please enter your name: 
+|| CHAT BOX APPLICATION ||  2022-11-27 15:48:11 | INFO    | server.cpp      | main:343 | gayathri join in the chatroom. Online User Number: 1
+
+|| CHAT BOX APPLICATION ||  2022-11-27 15:48:24 | INFO    | client.cpp      | main:92 | Enter the Username:
+|| CHAT BOX APPLICATION ||  2022-11-27 15:48:41 | INFO    | client.cpp      | main:97 |  Enter the Password:
+|| CHAT BOX APPLICATION ||  2022-11-27 15:48:44 | ERROR   | client.cpp      | main:102 | Invalid user details
+
+|| CHAT BOX APPLICATION ||  2022-11-27 15:48:44 | INFO    | client.cpp      | main:92 | Enter the Username:
+|| CHAT BOX APPLICATION ||  2022-11-27 15:48:52 | INFO    | client.cpp      | main:97 |  Enter the Password:
+|| CHAT BOX APPLICATION ||  2022-11-27 15:48:57 | INFO    | client.cpp      | main:108 | Thank you for logging in.
+
+|| CHAT BOX APPLICATION ||  2022-11-27 15:48:57 | INFO    | client.cpp      | main:109 | 
+
+**
+|| CHAT BOX APPLICATION ||  2022-11-27 15:48:57 | INFO    | client.cpp      | main:110 | 
+
+*             WELCOME TO CHAT BOX APPLICATION **
+|| CHAT BOX APPLICATION ||  2022-11-27 15:48:57 | INFO    | client.cpp      | main:111 | 
+
+*
+|| CHAT BOX APPLICATION ||  2022-11-27 15:48:57 | INFO    | client.cpp      | main:127 | Please enter IP address of the server: 
+|| CHAT BOX APPLICATION ||  2022-11-27 15:49:01 | INFO    | client.cpp      | main:129 | Please enter port number of the server: 
+|| CHAT BOX APPLICATION ||  2022-11-27 15:49:04 | INFO    | client.cpp      | main:145 | Connecting......
+|| CHAT BOX APPLICATION ||  2022-11-27 15:49:04 | INFO    | client.cpp      | main:160 | 
+Connect Successfully!
+
+|| CHAT BOX APPLICATION ||  2022-11-27 15:49:04 | INFO    | client.cpp      | main:164 | Welcome to Use Multi-Person Chat room!
+
+|| CHAT BOX APPLICATION ||  2022-11-27 15:49:04 | INFO    | client.cpp      | main:167 | Please enter your name: 
+|| CHAT BOX APPLICATION ||  2022-11-27 15:49:12 | INFO    | server.cpp      | main:343 | likhitha join in the chatroom. Online User Number: 2
+
+|| CHAT BOX APPLICATION ||  2022-11-27 15:49:18 | ERROR   | client.cpp      | main:225 | Reached the upper limit of the words!
+
+|| CHAT BOX APPLICATION ||  2022-11-27 15:49:23 | INFO    | client.cpp      | main:233 | 
+
+|| CHAT BOX APPLICATION ||  2022-11-27 15:49:29 | ERROR   | client.cpp      | main:225 | Reached the upper limit of the words!
+
+|| CHAT BOX APPLICATION ||  2022-11-27 15:49:32 | INFO    | client.cpp      | main:233 | 
+
+|| CHAT BOX APPLICATION ||  2022-11-27 15:49:44 | INFO    | server.cpp      | chat:168 | likhitha left the chatroom. Online Person Number: 1
+
+|| CHAT BOX APPLICATION ||  2022-11-27 15:49:55 | INFO    | server.cpp      | chat:168 | gayathri left the chatroom. Online person:0
