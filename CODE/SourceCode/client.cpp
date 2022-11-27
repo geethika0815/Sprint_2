@@ -7,16 +7,21 @@
 #include <pthread.h>
 #include <string>
 #include "logger.h"
+#include <fstream>
 using namespace std;
 
-#define BUFFER_LEN 10
+#define BUFFER_LEN 1024
 #define NAME_LEN 10
 
-char name[NAME_LEN + 1]; /*client's name*/
-void *handle_recv(void *data) /*receive message and print out*/
+char name[NAME_LEN + 1]; // client's name
+
+/*receive message and print out*/
+void *handle_recv(void *data)
 {
-    int pipe = *(int *)data;  
-    string message_buffer; /*message buffer*/
+    int pipe = *(int *)data;
+
+    /*message buffer*/
+    string message_buffer;
     int message_len = 0;
 
     /*one transfer buffer*/
@@ -27,16 +32,16 @@ void *handle_recv(void *data) /*receive message and print out*/
     while ((buffer_len = recv(pipe, buffer, BUFFER_LEN, 0)) > 0)
     {
         /*to find '\n' as the end of the message*/
-        for (int client_msg = 0; client_msg < buffer_len; client_msg++)
+        for (int msg_len = 0; msg_len  < buffer_len; msg_len++)
         {
             if (message_len == 0)
-                message_buffer = buffer[client_msg];
+                message_buffer = buffer[msg_len ];
             else
-                message_buffer += buffer[client_msg];
+                message_buffer += buffer[msg_len ];
 
             message_len++;
 
-            if (buffer[client_msg] == '\n')
+            if (buffer[msg_len ] == '\n')
             {
                 /*print out the message*/
                 cout << message_buffer << endl;
@@ -48,12 +53,62 @@ void *handle_recv(void *data) /*receive message and print out*/
         }
         memset(buffer, 0, sizeof(buffer));
     }
+    /*because the recv() function is blocking, so when the while() loop break, it means the server is offline*/
     printf("The Server has been shutdown!\n");
     return NULL;
 }
+const int SIZE = 4;	
+string Usernames[SIZE];
+string Password[SIZE];
 
+    int GetNameIndex(string query, int size)
+    {
+	for (int count=0; count<size; count++)
+	{
+		if (query == Usernames[count]) return count; 
+	}
+	return -1; //Error code
+}
+
+bool PasswordMatches(int index, string passwd)
+{
+	return (passwd == Password[index]);
+}
 int main()
 {
+        label:
+	//Read the database;
+	ifstream findip("database.txt");
+	int cnt=0;
+
+	while (!findip.eof())
+	{
+		findip >> Usernames[cnt] >> Password[cnt];
+		cnt++; 
+	}
+
+	//Now the rest of the program
+	string usrname, passwd;
+	LOG_INFO("Enter the Username:");
+	cin >> usrname;
+
+	int index = GetNameIndex(usrname, cnt); 
+
+	LOG_INFO(" Enter the Password:");
+	cin >> passwd;
+
+	if (!PasswordMatches(index, passwd))
+	{
+		LOG_ERROR("Invalid user details\n");
+		goto label;
+		
+	}
+	
+	
+    LOG_INFO( "Thank you for logging in.\n");
+    LOG_INFO ("\n\n**");
+    LOG_INFO ("\n\n*****  WELCOME TO CHAT BOX APPLICATION *****");
+    LOG_INFO  ("\n\n***");	
     /*create a socket to connect with the server*/
     int client_sock;
     if ((client_sock = socket(AF_INET, SOCK_STREAM, 0)) == 0)
@@ -63,6 +118,8 @@ int main()
     }
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
+
+    /*get IP address and port of the server and connect*/
     int server_port = 0;
     char server_ip[16] = {0};
     while (1)
@@ -71,7 +128,7 @@ int main()
         cin>>server_ip;
         LOG_INFO("Please enter port number of the server: ");
         cin>>server_port;
-        getchar(); 
+        getchar(); /*read useless '\n'*/
 
         addr.sin_port = htons(server_port);
         addr.sin_addr.s_addr = inet_addr(server_ip);
@@ -103,23 +160,24 @@ int main()
         LOG_INFO("\rConnect Successfully!\n");
     }
 
-    /*get client name*/
+    /*********** get client name ****************/
     LOG_INFO("Welcome to Use Multi-Person Chat room!\n");
     while (1)
     {
         LOG_INFO("Please enter your name: ");
         cin.get(name, NAME_LEN);
         int name_len = strlen(name);
+    
         /* overflow*/
         if (name_len > NAME_LEN - 2)
         {
-            /*reset*/
+            // reset
             cin.clear();
             cin.ignore(numeric_limits<streamsize>::max(), '\n');
             LOG_ERROR("\nReached the upper limit of the words!\n");
             continue;
         }
-        cin.get(); /*remove '\n' in stdin*/
+        cin.get(); // remove '\n' in stdin
         name[name_len] = '\0';
         break;
     }
@@ -128,18 +186,22 @@ int main()
         perror("send");
         return -1;
     }
-    /*get client name*/
+    /*************** get client name ********************/
 
     /*create a new thread to handle receive message*/
     pthread_t recv_thread;
     pthread_create(&recv_thread, NULL, handle_recv, (void *)&client_sock);
 
-    /*get message and send*/
+    /* get message and send*/
     while (1)
     {
         char message[BUFFER_LEN + 1];
         cin.get(message, BUFFER_LEN);
         int n = strlen(message);
+
+	if(strcmp(message, "exit")==0){
+		exit(0);
+	}
         if (cin.eof())
         {
             /*reset*/
@@ -150,7 +212,7 @@ int main()
         /*single enter*/
         else if (n == 0)
         {
-            // reset
+            /*reset*/
             cin.clear();
             clearerr(stdin);
         }
@@ -163,7 +225,7 @@ int main()
             LOG_ERROR("Reached the upper limit of the words!\n");
             continue;
         }
-        cin.get();         /*remove '\n' in stdin*/
+        cin.get();         /* remove '\n' in stdin*/
         message[n] = '\n'; /*add '\n'*/
         message[n + 1] = '\0';
         /*the length of message now is n+1*/
@@ -172,6 +234,7 @@ int main()
         /*the length of message that has been sent*/
         int sent_len = 0;
         /*calculate one transfer length*/
+
         int trans_len = BUFFER_LEN > n ? n : BUFFER_LEN;
 
         /*send message*/
@@ -194,5 +257,6 @@ int main()
 
     pthread_cancel(recv_thread);
     shutdown(client_sock, 2);
+     
     return 0;
 }
